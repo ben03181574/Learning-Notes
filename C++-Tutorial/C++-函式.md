@@ -47,7 +47,13 @@ int main() {
     return 0;
 }
 ```
-> 由於 Visual Studio Code 的 Code Runner 預設只編譯執行一個程式檔案，但這裡需要把兩個程式檔案放在一起編譯，因此切換到 TERMINAL ，接著將 math.cpp 與 main.cpp 放在一起編譯。
+> 由於 Visual Studio Code 的 Code Runner 預設只編譯執行一個程式檔案，因此切換到 TERMINAL ，接著將 math.cpp 與 main.cpp 分別編譯成中間過程檔（.o），最後再將所有中間過程檔連結成執行檔。  
+>    `g++ -c math.cpp`  
+>    `g++ -c main.cpp`  
+>    `g++ -o main main.o math.o`  
+>    `./main.exe`  
+> 
+>![image](./cpp-compile.png)
 
 由於透過上方呼叫函式時會造成額外的資源負擔，因此可以「建議」編譯器設為 __inline__ 行內，若建議被採納，該函式會自動在呼叫點展現為程式碼（inline 函式通常直接在標頭檔中實作），而不是待編譯器需要其實作時才展開函式呼叫。
 ```c++

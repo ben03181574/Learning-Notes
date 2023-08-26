@@ -83,7 +83,7 @@ int main( ) {
 ```
 <hr/>
 
-## **4. C++ 變數、關鍵字、運算符**  
+## **4. C++ 變數、變數範圍、關鍵字、運算符**  
 C++ 變數命名時不可以使用數字作為開頭，也不可以使用一些特殊字元（如 *&^% 等字元），同時也不可以與 C++ 內定的關鍵字同名。
 
 C++ 宣告變數時，會根據其資料型態在記憶體中配置空間。同時如果是非區域變數時，變數預設為對應型態的初始值，但當屬於區域變數時，變數如未初始化，其值為不可預期。
@@ -120,8 +120,19 @@ C++ 有以下幾種資料類型：
 3. 枚舉數據類型（Enumeration）：枚舉(enum)
 4. 用戶定義的數據類型（User Defined）：結構體
 <hr/>
+C++ 變數範圍（scope）涉及許多層次，最簡單可以分為全域變數（Global variable）、區域變數（Local variable）與區塊變數（Block variable）：
 
-C++ 使用 const 關鍵字來限定時，如果程式中有其他程式碼試圖改變這個變數，編譯器會檢查出這個錯誤。也可以使用 constexpr 請編譯器驗證常數初始時是否是在編譯時期決定，否則報錯。
+1. 全域變數是指直接宣告在（主）函式之外的變數。
+    + 全域變數最好只用來定義一些常數，或者是確實具有全域概念的變數，不應為了方便而草率地將變數設為全域變數，否則會發生名稱空間重疊等問題。
+    + 全域變數的生命週期始於程式開始，終止於程式結束。
+2. 區域變數是指函式中宣告的變數，或是宣告在參數列的參數，範圍只在函式之內。
+    + 區域變數的生命週期始於函式執行，終止於函式執行完畢。
+3. 區塊變數是指宣告在某陳述區塊中的變數（ while 迴圈區塊，或是 for 迴圈區塊）。
+
+範圍大的變數與範圍小的變數同名狀況時，範圍小的變數會暫時遮蔽（shadow）範圍大的變數，稱為變數遮蔽。
+<hr/>
+
+C++ 使用 __const__ 關鍵字來限定時，如果程式中有其他程式碼試圖改變這個變數，編譯器會檢查出這個錯誤。也可以使用 __constexpr__ 請編譯器驗證常數初始時是否是在編譯時期決定，否則報錯。
 ```c++
 constexpr int A = 10;
 constexpr int B = sizeof(10);
@@ -129,13 +140,74 @@ constexpr int C = sizeof(B);
 constexpr int D = rand();    // error: call to non-'constexpr' function 'int rand()'
 ```
 
-C++ 如果要宣告無號整數變數，可以加上 unsigned 關鍵字：
+C++ 如果要宣告無號整數變數，可以加上 __unsigned__ 關鍵字：
 ```c++
 unsigned int i ;
 ```
 
-C++ 中共有32個關鍵字：
-> auto, break, case, char, const, continue, default, do, double, else, enum, extern, float, for, goto, if, int, long, register, return, short, signed, sizeof, static, struct, switch, typedef, union, unsigned, void, volatile, while
+C++ 使用 __extern__ 關鍵字，主要是讓各個 .cpp 檔之間可以有共用的變數，可參考[此處](https://medium.com/@alan81920/c-c-%E4%B8%AD%E7%9A%84-static-extern-%E7%9A%84%E8%AE%8A%E6%95%B8-9b42d000688f)：
+> 當某兩檔案中各有相同變數名稱，其變數宣告 func 外（會被統一視為 global var），兩個 compile 後的 .o 檔在 link 的過程中就會因為名字相同而產生衝突的錯誤，解決其衝突問題可以透過 static （下方第二種場景）。
+```c++
+// 可以比較下方兩組差別：第一組有共用變數 a ，第二組則沒有（函式內沒有宣告初始值導致隨機數）
+// 1.
+// extern.cpp
+#include <iostream>
+using namespace std;
+double a = 1;
+// main.cpp
+#include <iostream>
+using namespace std;
+int main() {
+    extern double a;
+    cout << "In main, a = " << a << endl;
+    // In main, a = 1
+    a = 5.0;
+    cout << "In main, a = " << a << endl;
+    // In main, a = 5
+    return 0;
+}
+// 2.
+// noExtern.cpp
+#include <iostream>
+using namespace std;
+double a = 1;
+// main.cpp
+#include <iostream>
+using namespace std;
+int main() {
+    double a;
+    cout << "In main, a = " << a << endl;
+    // In main, a = 6.31956e-312
+    a = 5.0;
+    cout << "In main, a = " << a << endl;
+    // In main, a = 5
+    return 0;
+}
+```
+
+C++ 使用 __static__ 關鍵字，功能主要可以依四種場景區分。  
+1. static 出現在 variable 之前，且該 variable 宣告在某個 function 之中：
+    + 變數宣告時若加上 static，執行時期會一直存在記憶體的固定位置（代表著就算函式執行完畢，變數也不會消失）。
+2. static 出現在 variable 之前，且該 variable 並不是宣告在某個 function 中：
+    + static 的用意就是要讓這樣的 global 只限定在該檔案內，而不是整個程式中，避免因為名字相同而產生衝突的錯誤。
+        ```c++
+        #include <iostream>
+        using namespace std;
+        static bool debug = true;
+        void show_debug_in_a() {
+            cout << debug << endl;
+        }
+        ```
+3. static 出現在 class 的 member variable 之前 
+4. static 出現在 class 的 member function 之前
+
+
+
+C++ 中有 32 個 C 也可用的關鍵字：
+> auto, break, case, char, const, continue, default, do, double, else, enum, extern, float, for, goto, if, int, long, register, return, short, signed, sizeof, static, struct, switch, typedef, union, unsigned, void, volatile, while  
+
+C++ 中有 30 個 C  不可用的關鍵字：
+> asm, dynamic_cast, namespace, reinterpret_cast, bool, explicit, new, static_cast, false, catch, operator, template, friend, private, class, this, inline, public, throw, const_cast, delete, mutable, protected, true, try, typeid, typename, using, virtual, wchar_t
 <hr/>  
 
 C++ 提供算術相關的加（+）、減（-）、乘（*）、除（/） 以及餘除運算子（%）或稱模數（Modulus）運算子，這類以數學運算為主的運算子，稱為「算術運算子」（Arithmetic operator）。
@@ -165,7 +237,7 @@ C++ 提供算術相關的加（+）、減（-）、乘（*）、除（/） 以�
     }
     ```
 + reinterpret_cast：如果只希望儲存位址而不關心型態，可以使用 void* 來宣告指標，也因此不可以使用 * 運算子對 void* 型態指標提取值，編譯器也不會允許將 void* 指標直接指定給具有型態資訊的指標，必須使用 reinterpret_cast 明確告知編譯器，這個動作是你允許的。
-> 其就是告訴編譯器要以指定型態重新解釋 p 位址處的資料。
+    > 其就是告訴編譯器要以指定型態重新解釋 p 位址處的資料。
     ```c++
     int main() { 
         int n = 10; 
