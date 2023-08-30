@@ -1,4 +1,4 @@
-# C++ 指標
+# C++ 指標與參考
 ## **目錄**
 ---
 1. [C++ 指標位置與運算](#1-c-指標位置與運算)
@@ -7,6 +7,7 @@
 4. [C++ 指標與字元陣列/字串陣列](#4-c-指標與字元陣列字串陣列)
 5. [C++ 動態記憶體配置](#5-c-動態記憶體配置)
 6. [C++ 命令列引數](#6-c-命令列引數)
+7. [C++ 參考](#7-c-參考)
 ---  
 <br/>  
 
@@ -139,6 +140,21 @@ int main() {
 ```
 > __注意！__ *p[2] 是指有一長度為 2 的 __指標陣列__，而 (*p)[3] 則是指有一指標指向長度為 3 的整數陣列。
 
+透過指標結合 begin(), end() 函式來尋訪（多維）陣列：
+```c++
+int maze[2][3] ={
+                    {1, 2, 3},
+                    {4, 5, 6}
+                };
+// for(auto row : maze) {
+for(int (*it)[3] = begin(maze); it < end(maze); it++) {
+    int *row = *it;
+    for(int i = 0; i < 3; i++) {
+        cout << row[i] << "\t"; 
+    }
+    cout << endl; 
+} 
+```
 <hr/>
 
 ## **4. C++ 指標與字元陣列/字串陣列**
@@ -191,7 +207,7 @@ const char *text2 = "hello";
 char *text = text1;               // OK
 text = const_cast<char*>(text2);  // OK
 ```
-字串陣列建立：
+字串指標陣列建立：
 ```c++
 int main() {
     const char *names[] = {"Justin", "Monica", "Irene"};
@@ -283,3 +299,78 @@ int main(int argc, char *argv[]) {
     return 0; 
 }
 ```
+<hr/>
+
+## **7. C++ 參考**  
+C++ 參考是指物件的別名，其不單單只是該物件的實例，而是記憶體中的資料。  
+
+定義參考，是在型態關鍵字後加上 & 運算子，且參考一定要初始。
+```c++
+int n = 10;
+int &r = n;
+
+cout << "n：" << n << endl// n：10
+     << "r：" << r << endl;// r：10
+
+r = 20;
+
+cout << "n：" << n << endl// n：20
+     << "r：" << r << endl;// r：20
+```
+參考的物件也可以是個指標，或者是陣列，不過陣列需要指定長度。
+```c++
+// 宣告成指標
+int n = 10;
+int *p = &n;
+int *&r = p; // 等同於 int* &r = p;
+// 宣告成陣列
+int arr[] = {1, 2};
+int (&r)[2] = arr;
+```
+
+常量是記憶體中暫時的資料，因此無法透過 & 取址。不過加上 const 後不會報錯，因為編譯器會做下列轉換：
+> 參考常量通常會與函式呼叫有關。
+```c++
+// 編譯器轉換
+const int _n = 10;
+const int &r = _n;
+// 實際
+const int &r = 10;
+```
+
+此外，如下方之運算式，因為也是將運算結果暫存在記憶體致無法取址，也可透過加入 const 來參考，或者也可以使用 && （rvalue reference）來參考運算結果。
+> 粗略的判別方式，是看看 & 可否對運算式取址，若可以的話，運算式是 lvalue，否則是個 rvalue；lvalue 運算式的結果會是個有名稱的物件，例如 a，rvalue 的結果是暫時性存在於記憶體，例如 a + b。
+```c++
+int a = 10;
+int b = 20;
+string s1 = "hello";
+string s2 = " pcku";
+// 透過 const 來參考
+const int &r = 10; 
+const int &r2 = a + b; 
+// 透過 &&（rvalue reference）參考：
+int &&rr3 = 50;
+int &&rr4 = a + b;
+string &&result = s1 + s2;
+// lvale 可直接參考：
+int i = 10;
+int &r = ++i; // ++i 運算結果是遞增後的 i，也就是 ++i 運算結果是個有名稱的物件
+// rvalue 可利用 && 參考：
+int i = 10;
+int &&rr = i++; // i++ 運算結果是遞增前的 i，暫時性存在於記憶體，若不指定給變數的話就不見了
+```
+
+上方談到 [C++ 指標與陣列](#3-c-指標與陣列) 時有結合指標與 begin(), end() 來尋訪多維陣列元素，然而在內層的 for 迴圈只能透過指標的索引（位置偏移）來取得值，但是如果利用參考來參考指標就可以在內層迴圈也使用 begin(), end() 函式。
+```c++
+// for(auto &row : maze) { // 參考
+for(int (*it)[3] = begin(maze); it < end(maze); it++) {
+    int (&row)[3] = *it;   // 參考
+    for(auto offset = begin(row); offset < end(row); offset++) {
+        int n = *offset;
+        cout << n << "\t"; 
+    }
+    cout << endl; 
+} 
+```
+
+　
