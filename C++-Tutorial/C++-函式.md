@@ -5,6 +5,11 @@
 2. [C++ 引數與參數](#2-c-引數與參數)
 3. [C++ 不定長度引數](#3-c-不定長度引數)
 4. [C++ 傳回值](#4-c-傳回值)
+5. [C++ 函式模板](#5-c-函式模板)
+6. [C++ 函式模板不定長度引數](#6-c-函式模板不定長度引數)
+7. [C++ 函式模板尾端傳回型態](#7-c-函式模板尾端傳回型態)
+8. [C++ 函式指標](#8-c-函式指標)
+9. [C++ lambda運算式](#9-c-lambda運算式)
 ---  
 <br/>  
 
@@ -284,6 +289,8 @@ int& showError() {
 下列為傳回 lvalue 或 rvalue 參考程式碼：
 > 儘管第二個函式中，lhs 型態是右值引用，但在函數内部右值引用仍會被當作左值引用来對待，因此需要使用 std::move 来將他轉換為右值引用。
 
+> 此外，在函數内部右值引用如果要將此 rvalue 參考傳遞給另一個函式（不同於上方的回傳），則需使用 std::forward ，來告訴編譯器，將呼叫時運算式來源的資訊轉給接收的那方。
+
 ```C++
 // 傳回 lvalue 參考 
 // 此處如果傳回不用參考，接收回傳值時需要額外使用變數去接（產生 string 內容不必要的複製）、或者rvalue reference去接。因為回傳的string 是暫存的、不是有名稱的物件）
@@ -292,10 +299,378 @@ string& longerStr(string &s1, string &s2) {
     return s1.length() > s2.length() ? s1 : s2;
 }
 
-// 傳回 rvalue 參考 
+// 傳回 rvalue 參考 [std::move]
 string&& concat(string &&lhs, string &rhs) {
     lhs += rhs;
     return std::move(lhs);
 }
+// 轉傳 rvalue 參考 [std::forward]
+void foo(int &&p) {
+    //...
+}
+
+template <typename T>
+void some(T &&t) {
+    foo(std::forward<T>(t));
+}
+```
+<hr/>  
+
+## **5. C++ 函式模板**  
+函式模版（function template），或稱為泛型函式（generic function）。
+
+當多數函數行為相同，只有參數型態不同時，可以使用模板來提升效率。也就是參數的型態可以於呼叫實在指定。
+```c++
+template <typename T>
+bool greaterThan(T a, T b) {
+    return a > b;
+}
+
+int main() { 
+    // 顯示 0
+    cout << greaterThan(10, 20) << endl;
+    // 顯示 1
+    cout << greaterThan(string("xyz"), string("abc")) << endl;
+    return 0; 
+} 
 ```
 
+而當模板鍾某情況需要自己定義時，可用：
+```c++
+template <typename T>
+bool greaterThan(T a, T b) {
+    return a > b;
+}
+
+template <>
+bool greaterThan(string s1, string s2) {
+    return s1.size() > s2.size();
+}
+
+int main() { 
+    cout << greaterThan(10, 20) << endl;
+    cout << greaterThan(string("xyz"), string("abc")) << endl;
+
+    return 0; 
+} 
+```
+
+函式模板一樣可以處裡陣列：
+```c++
+// 此 L 為模版的非型態參數（nontype parameter）其必須是個常數運算式，也就是靜態時期可決定的值。
+template <typename T, int L>
+void printAll(T (*arr)[L]) {
+   for(auto elem : *arr) {
+       cout << elem << " ";
+   }
+   cout << endl;
+}
+
+int main() { 
+    int arr1[] = {1, 2};
+    int arr2[] = {3, 4, 5};
+
+    printAll(&arr1);
+    printAll(&arr2);
+
+    return 0; 
+} 
+```
+
+結合參考可以寫成以下：
+```c++
+// 此處 T 會被推斷為 int [2]
+template <typename T>
+void printAll(T &arr) {
+   for(auto elem : arr) {
+       cout << elem << " ";
+   }
+   cout << endl;
+}
+
+int main() { 
+    int arr1[] = {1, 2};
+    int arr2[] = {3, 4, 5};
+
+    printAll(arr1);
+    printAll(arr2);
+
+    return 0; 
+} 
+```
+
+上方的範例傳入模板參數是 lvalue的版本，然而傳入值其實也可以是 rvalue ，因為在 C++ 中有一個特例，如果將 lvalue 傳給模版函式的 T&& 參數的話，T 會被推斷為 int&，如下方：
+```c++
+void foo(int &p) {
+    p = 10;
+}
+
+template <typename T>
+void some(T &&t) {
+    foo(t);
+}
+
+int main() {
+    int x = 5;
+    some(x);
+    some(10);
+    cout << x << endl;
+    return 0; 
+}
+```
+<hr/>  
+
+## **6. C++ 函式模板不定長度引數**
+C++ 11 以後可以透過可變參數模版（variadic template）來解決引數數量、型態不同時的函式模板。
+```c++
+// Types 被稱為模版參數包（template parameter pack）
+template <typename... Types>
+// params 被稱為函式參數包（function parameter pack）
+void foo(Types... params) {
+    // 使用 sizeof... 來得知實際呼叫時的型態數量或引數數量
+    cout << sizeof...(Types) << " "
+         << sizeof...(params) << endl;
+}
+
+int main() { 
+    foo(1);             // 顯示 1 1
+    foo(1, "XD");       // 顯示 2 2
+    foo(1, "XD", 3.14); // 顯示 3 3
+
+    return 0; 
+} 
+```  
+
+如果呼叫時的引數是同一型態，一個簡單的方式是展開為陣列、vector 等型態。
+```c++
+template <typename T, typename ...Ts>
+T sum(T first, Ts... rest) {
+    vector<T> nums = {rest...};
+    T r = first;
+    for(auto n : nums) {
+        r += n;
+    }
+    return r;
+}
+```
+
+如果實際上傳遞的引數型態各不相同，此時需使用遞迴並配合解開參數包。
+```c++
+template <typename T>
+void print(T p) {
+    cout << p << endl;
+}
+
+template <typename T, typename ...Ts>
+void print(T first, Ts... rest) {
+    cout << first << " ";
+    print(rest...);
+}
+
+int main() { 
+    print(1);
+    print(1, "2");
+    print(1, "2", 3.14);
+
+    return 0; 
+} 
+```
+<hr/>  
+
+## **7. C++ 函式模板尾端傳回型態**
+如下方程式碼，如果要在標頭檔宣告函式模板原型，傳回值不能寫 auto 因為沒有沒有程式碼上下文，無法判斷。此時便需要使用尾端傳回型態（tailing return type）。
+> 不使用 decltype(*begin) 是因為 *begin 是個 lvalue，若迭代器中的元素型態是 E，那 decltype(*begin) 會推斷出 E&，這樣的話，傳回型態會參考區域變數 r，然而函式執行完後 r 就無效了，因此不能使用 decltype(*begin)；這邊需要的是個 rvalue，以令其推斷出 E，因此使用 decltype(*begin + *end)。推斷出 E 原因是在這個特定的表達式中，並沒有涉及到引用。*begin 和 *end 被解引用後直接得到 E （整數值），所以 decltype(*begin + *end) 被推斷為 E （整數型態）。  
+
+> 當你使用 decltype(*begin) 這個表達式時，它會幫助你找出迭代器 begin 指向的元素的類型。假設這個元素是一個整數（int），那麼這個表達式會推斷出這個元素的類型是整數的引用（int&），而不僅僅是整數。這是因為迭代器指向的元素是通過引用方式獲取的，而不是直接的數值。
+```c++
+template <typename T>
+auto addThese(T begin, T end) {
+    auto r = *begin;
+    for(auto it = begin + 1; it != end; it++) {
+        r += *it;
+    }
+    return r;
+}
+// 尾端傳回型態
+template <typename T>
+auto addThese(T begin, T end) -> decltype(*begin + *end);
+```
+<hr/>  
+
+## **8. C++ 函式指標**
+程式在執行時，函式在記憶體中也佔有一個空間。而函式名稱作為指定來源時，函式名稱會自動轉為指標，型態由傳回值型態與參數列決定。
+```c++
+int foo(int); 
+
+int main() { 
+    int (*fp)(int) = foo; 
+
+    foo(10);  // 顯示 10
+    fp(20);   // 顯示 20
+
+    return 0; 
+} 
+
+int foo(int n) { 
+    cout << "n = " << n << endl; 
+    return 0; 
+}
+```
+
+即便是有重載函式，但也因為他們的函式簽名不同，因此編譯器會根據函式指標的型態不同，而呼叫對應的函式：
+```c++
+int foo(int); 
+int foo(int, int);
+
+int main() { 
+    int (*fp)(int) = foo; 
+    int (*add)(int, int) = foo; 
+
+    foo(10);// 10
+    cout << "1 + 2 = " << add(1, 2) << endl;  // 3
+
+    return 0; 
+} 
+
+int foo(int n) { 
+    cout << "n = " << n << endl; 
+}
+
+int foo(int a, int b) { 
+    return a + b;
+}
+```
+
+函是指標主要用來傳遞函式，除了函式指標宣告，也可以利用 typedef、using 或者 decltype。
+```c++
+// 函式原型
+void sort(int*, int, bool (*compare)(int, int));
+bool ascending(int, int);
+bool descending(int, int);
+
+// 函式原型 + typedef
+typedef bool (*CMP)(int, int);
+
+void sort(int*, int, CMP);
+bool ascending(int, int);
+bool descending(int, int);
+
+// 函式原型 + using
+using CMP = bool (*)(int, int);
+
+void sort(int*, int, CMP);
+bool ascending(int, int);
+bool descending(int, int);
+
+// 函式原型 + decltype
+bool cmp(int, int);
+
+void sort(int*, int, decltype(cmp));
+bool ascending(int, int);
+bool descending(int, int);
+```
+
+函是指標可以結合陣列形成函是指標陣列：
+```c++
+bool (*compare[10])(int, int) = {nullptr};
+// 使用 using 呼叫
+using CMP = bool (*)(int, int);
+CMP compare[10] = nullptr;
+// 使用 decltype 呼叫
+bool cmp(int, int);
+decltype(cmp) *compare[10] = {nullptr};
+```
+
+此外，C++ 也提供 Callable 物件，定義於functional 標頭檔，其支援函式指標。
+```C++
+void sort(int*, int, function<bool(int, int)>);
+bool ascending(int, int);
+
+int main() { 
+    sort(number, 5, ascending);
+}
+void swap(int &a, int &b) {
+    int t = a; 
+    a = b; 
+    b = t;
+}
+bool ascending(int a, int b) {
+    return a < b;
+}
+void sort(int* arr, int length, function<bool(int, int)> compare) { 
+    for(int flag = 1, i = 0; i < length - 1 && flag == 1; i++) { 
+        flag = 0; 
+        for(int j = 0; j < length - i - 1; j++) { 
+            if(compare(arr[j + 1], arr[j])) { 
+                swap(arr[j + 1], arr[j]); 
+                flag = 1; 
+            } 
+        } 
+    } 
+}
+```
+<hr/>  
+
+## **9. C++ lambda運算式**
+C++可以使用 lambda 運算式，其在函式中封裝一段演算流程進行傳遞
+> lambda 運算式定義了一個 Callable 物件，也就是個可以接受呼叫操作的物件。  
+
+> 而且其會建立一個匿名類別（稱為 closure type）的實例，因為無法取得匿名類別的名稱，也就無法宣告其型態，因而大多使用 auto 來自動推斷，此外也可以利用 function 來宣告。
+```c++
+// lambda 定義
+// [ captures ] ( params ) -> ret { body }
+auto print = [](int n) -> void { cout << n << " "; };
+// [ captures ] ( params ) { body }
+// 沒有定義 ret 的型態時，會自動推斷
+auto print = [](int n) { cout << n << " "; };
+// [ captures ] { body }
+auto print = []{ cout << "hello"; };
+// 改以 function 宣告（當遇到某些函式參數無法使用 auto 時）
+function<void(int)> print = [](int n) { cout << n << " "; };
+```
+
+lambda 運算式也可被指定給函式指標
+```c++
+void (*f)(int) = [](int n) { cout << n << " "; };
+```
+
+lambda 運算式前方的 [capture] ，代表其是否有運用到外部變數：
++ [=]：lambda 運算式本體可以取用外部變數。
++ [&]：lambda 運算式本體可以參考外部變數。
++ [x, y]：以 = 的方式取用外部的 x、y。
++ [x, &y]：以 = 取用外部的 x，以 & 的方式參考外部的 y。
++ [=, &y]：以 & 的方式參考外部的 y，其餘外部變數取用時都是 = 的方式。
++ [&, y]：以 = 的方式參考外部的 y，其餘外部變數以 & 的方式參考。
+> [=] 其實是隱含的建立區域變數，其值預設不能修改，欲修改須加上 mutable 詞。
+```c++
+#include <iostream> 
+using namespace std; 
+
+int main() { 
+    int x = 10;
+
+    auto f = [=]() mutable -> void {
+        x = 20;
+        cout << x << endl;
+    };
+
+    f(); // 顯示 20
+    cout << x << endl; // 顯示 10
+
+    return 0; 
+} 
+```
+
+lambda 運算式也可以模版化：
+```c++
+template <typename T>
+function<T(T)> negate_all(T t1) {
+    return [=](T t2) -> T {
+        return t1 + t2;
+    };
+}
+int main() { 
+    int x = 5;
+    cout << negate_all(x)(4); // 9
+} 
+```
