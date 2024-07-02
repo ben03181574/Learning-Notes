@@ -2,6 +2,9 @@
 A repo for saving my learning notes.  
 Topics include programming, algorithm, p2p-network, and so on.  
 
+### Data Structure(code)
+1. [Recurive 遞迴](./Data-Structure-code/Recursive.c)
+
 ### C++ Tutorial 
 1. [C++ Hellow World](./C++-Tutorial/C++-Hello-World.md)  
 2. [C++ 流程控制](./C%2B%2B-Tutorial/C%2B%2B-%E6%B5%81%E7%A8%8B%E6%8E%A7%E5%88%B6.md)
